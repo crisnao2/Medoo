@@ -17,7 +17,7 @@ use \Medoo\Medoo;
 
 class Result Extends Medoo
 {
-	private $statement = null;
+	protected $statement = null;
 
 	public function __construct($options = null)
     {
@@ -38,38 +38,39 @@ class Result Extends Medoo
     *
     * @return boolean or object
     */
-	public function query($sql, $map = [])
+    public function query($sql, $map = [])
     {
         if (!preg_match('#^(select|show) #i', $sql)) {
             return parent::query($sql, $map);
         }
 
-		$this->statement = $this->pdo->prepare($sql);
-        $result = new \stdClass();
-        $result->row = array();
-        $result->rows = array();
-        $result->num_rows = 0;
+        parent::query($sql, $map);
 
-		if ($this->statement->execute()) {
-			$data = array();
-			$i = 0;
+        if ($this->statement) {
+            $data = array();
+            $i = 0;
 
-			while ($row = $this->statement->fetch(PDO::FETCH_ASSOC)) {
-				$data[] = $row;
+            while ($row = $this->statement->fetch(\PDO::FETCH_ASSOC)) {
+                $data[] = $row;
+                
+                $i++;
+            }
 
-				$i++;
-			}
+            $result = new \stdClass();
+            $result->row = (isset($data[0]) ? $data[0] : array());
+            $result->rows = $data;
+            $result->num_rows = $i;
 
-			$result = new \stdClass();
-			$result->row = (isset($data[0]) ? $data[0] : array());
-			$result->rows = $data;
-			$result->num_rows = $i;
+            unset($data);
+        } else {
+            $result = new \stdClass();
+            $result->row = array();
+            $result->rows = array();
+            $result->num_rows = 0;
+        }
 
-			unset($data);
-		}
-
-		return $result;
-	}
+        return $result;
+    }
 
     /**
     * Returns the number of records affected by the last query
@@ -86,16 +87,6 @@ class Result Extends Medoo
 	}
 
     /**
-    * Returns the id of the last record entered
-    *
-    * @return integer
-    */
-    public function getLastId()
-    {
-        return $this->pdo->lastInsertId();
-    }
-
-    /**
     * Destroy PDO reference
     *
     * @return void
@@ -105,5 +96,3 @@ class Result Extends Medoo
 		$this->pdo = null;
 	}	
 }
-
-?>
